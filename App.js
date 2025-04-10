@@ -1,96 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, StatusBar, View } from 'react-native';
 import theme from './theme';
+import { YouTubeProvider } from './context/YouTubeContext';
 
 // Import components
 import Header from './components/Header';
-import RecentlyPlayed from './components/RecentlyPlayed';
-import MadeForYou from './components/MadeForYou';
-import TrendingNow from './components/TrendingNow';
 import BottomNavigation from './components/BottomNavigation';
+import HomeContent from './components/HomeContent';
 
 // Import screens
-import ExploreScreen from './screens/ExploreScreen';
-import PlayingScreen from './screens/PlayingScreen';
-import LibraryScreen from './screens/LibraryScreen';
+import ExploreScreen from './screens/ExploreScreenWithAPI';
+import PlayingScreen from './screens/PlayingScreenWithAPI';
+import LibraryScreen from './screens/LibraryScreenWithAPI';
 
-export default function App() {
+function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [username, setUsername] = useState('Alex');
 
-  // Sample data for recently played
-  const recentlyPlayedAlbums = [
-    {
-      id: '1',
-      title: 'Midnight Dreams',
-      artist: 'Luna Eclipse',
-      cover: 'https://images.unsplash.com/photo-1614149162883-504ce4d13909',
-    },
-    {
-      id: '2',
-      title: 'Summer Breeze',
-      artist: 'Coastal Waves',
-      cover: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e',
-    },
-    {
-      id: '3',
-      title: 'Electric Soul',
-      artist: 'Neon Pulse',
-      cover: 'https://images.unsplash.com/photo-1550684376-efcbd6e3f031',
-    },
-  ];
-
-  // Sample data for made for you playlists
-  const madeForYouPlaylists = [
-    {
-      id: '1',
-      title: 'MUSIC',
-      subtitle: 'Your Daily Mix',
-      description: 'Based on your recent listening',
-      cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4',
-    },
-    {
-      id: '2',
-      title: 'DISCOVERY',
-      subtitle: 'PLAYLIST',
-      description: 'Discover Weekly',
-      secondaryDescription: 'New music for you',
-      cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea',
-    },
-  ];
-
-  // Sample data for trending now
-  const trendingAlbums = [
-    {
-      id: '1',
-      title: 'Neon Nights',
-      artist: 'Crystal Vision',
-      cover: 'https://images.unsplash.com/photo-1614149162883-504ce4d13909',
-    },
-    {
-      id: '2',
-      title: 'Desert Wind',
-      artist: 'Sahara Soul',
-      cover: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800',
-    },
-  ];
+  // We'll use the YouTube API data instead of sample data
 
   const handleTabPress = (tabId) => {
     setActiveTab(tabId);
   };
 
   // Render home screen content
-  const renderHomeScreen = () => (
-    <>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.scrollView}>
-        <Header username={username} />
-        <RecentlyPlayed albums={recentlyPlayedAlbums} />
-        <MadeForYou playlists={madeForYouPlaylists} />
-        <TrendingNow albums={trendingAlbums} />
-      </ScrollView>
-    </>
-  );
+  const renderHomeScreen = () => {
+    return (
+      <>
+        <StatusBar barStyle="dark-content" />
+        <ScrollView style={styles.scrollView}>
+          <Header username={username} />
+          <HomeContent />
+        </ScrollView>
+      </>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -139,3 +83,11 @@ const styles = StyleSheet.create({
   },
 });
 
+// Wrap the App component with the YouTubeProvider
+export default function AppWrapper() {
+  return (
+    <YouTubeProvider>
+      <App />
+    </YouTubeProvider>
+  );
+}
