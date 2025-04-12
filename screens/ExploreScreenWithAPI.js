@@ -7,7 +7,7 @@ import { useYouTube } from '../context/YouTubeContext';
 const ExploreScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('For You');
-  const { searchVideos, searchResults, isLoading, error, trendingVideos, popularMusicVideos } = useYouTube();
+  const { searchVideos, searchResults, isLoading, error, trendingVideos, popularMusicVideos, getVideoDetails } = useYouTube();
 
   // Categories data
   const categories = [
@@ -32,39 +32,41 @@ const ExploreScreen = () => {
 
   // Get playlists based on active category
   const getPlaylists = () => {
+    // Helper function to ensure unique IDs
+    const createUniqueItems = (videos) => {
+      const seenIds = new Map();
+      return videos.map((video, index) => {
+        // Create a unique key by adding a prefix if the ID is a duplicate
+        const uniqueId = seenIds.has(video.id)
+          ? `${video.id}_${index}`
+          : video.id;
+
+        // Mark this ID as seen
+        seenIds.set(video.id, true);
+
+        return {
+          id: uniqueId, // Use the unique ID as the key
+          originalId: video.id, // Keep the original ID for API calls
+          title: video.title,
+          description: video.channelTitle || `${video.viewCount} views`,
+          thumbnail: video.thumbnail,
+        };
+      });
+    };
+
     if (searchQuery.trim() && searchResults.length > 0) {
-      return searchResults.map(video => ({
-        id: video.id,
-        title: video.title,
-        description: video.channelTitle,
-        thumbnail: video.thumbnail,
-      }));
+      return createUniqueItems(searchResults);
     }
 
     switch (activeCategory) {
       case 'Charts':
-        return trendingVideos.map(video => ({
-          id: video.id,
-          title: video.title,
-          description: `${video.viewCount} views`,
-          thumbnail: video.thumbnail,
-        }));
+        return createUniqueItems(trendingVideos);
       case 'New':
-        return popularMusicVideos.map(video => ({
-          id: video.id,
-          title: video.title,
-          description: video.channelTitle,
-          thumbnail: video.thumbnail,
-        }));
+        return createUniqueItems(popularMusicVideos);
       default:
         // Mix of trending and popular for "For You"
         const combined = [...trendingVideos.slice(0, 3), ...popularMusicVideos.slice(0, 3)];
-        return combined.map(video => ({
-          id: video.id,
-          title: video.title,
-          description: video.channelTitle,
-          thumbnail: video.thumbnail,
-        }));
+        return createUniqueItems(combined);
     }
   };
 
@@ -83,9 +85,13 @@ const ExploreScreen = () => {
 
   // Handle playlist item press - play the video
   const handlePlaylistItemPress = (item) => {
-    if (item && item.id) {
-      console.log('Playing video:', item.id);
-      getVideoDetails(item.id);
+    if (item) {
+      // Use originalId if available, otherwise use id
+      const videoId = item.originalId || item.id;
+      if (videoId) {
+        console.log('Playing video:', videoId);
+        getVideoDetails(videoId);
+      }
     }
   };
 
