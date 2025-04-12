@@ -4,6 +4,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import theme from '../theme';
 import { useYouTube } from '../context/YouTubeContext';
 import YoutubePlayer from 'react-native-youtube-iframe';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 const PlayingScreen = () => {
   // State for tracking if the song is playing
@@ -32,7 +33,33 @@ const PlayingScreen = () => {
     };
 
     loadInitialVideo();
+
+    // Reset screen orientation when component unmounts
+    return async () => {
+      if (Platform.OS !== 'web') {
+        try {
+          await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        } catch (error) {
+          console.error('Error resetting screen orientation:', error);
+        }
+      }
+    };
   }, [currentVideo, popularMusicVideos]);
+
+  // Handle screen orientation
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Handle entering fullscreen mode
+  const handleFullscreenChange = useCallback(async (isFullscreen) => {
+    setIsFullscreen(isFullscreen);
+    if (Platform.OS !== 'web') {
+      if (isFullscreen) {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      } else {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      }
+    }
+  }, []);
 
   // Handle YouTube player state changes
   const onStateChange = useCallback((state) => {
@@ -161,18 +188,20 @@ const PlayingScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>YouTube Music</Text>
-        <TouchableOpacity style={styles.searchButton}>
-          <Ionicons name="search" size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-      </View>
+      {/* Header - Hide when in fullscreen mode */}
+      {!isFullscreen && (
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>YouTube Music</Text>
+          <TouchableOpacity style={styles.searchButton}>
+            <Ionicons name="search" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Album Art / Video Player */}
-      <View style={styles.albumContainer}>
+      <View style={[styles.albumContainer, isFullscreen && styles.fullscreenContainer]}>
         {currentVideo ? (
-          <View style={styles.videoContainer}>
+          <View style={[styles.videoContainer, isFullscreen && styles.fullscreenVideoContainer]}>
             {Platform.OS === 'web' && !isPlaying ? (
               // For web platform when not playing, show a clickable thumbnail
               <TouchableOpacity
@@ -193,33 +222,37 @@ const PlayingScreen = () => {
               // YouTube iframe player for all platforms
               <YoutubePlayer
                 ref={playerRef}
-                height={albumSize}
-                width={albumSize}
+                height={isFullscreen ? Dimensions.get('window').width : albumSize}
+                width={isFullscreen ? Dimensions.get('window').height : albumSize}
                 videoId={currentVideo.id}
                 play={isPlaying}
                 onChangeState={onStateChange}
                 onError={onError}
+                onFullScreenChange={handleFullscreenChange}
                 initialPlayerParams={{
                   preventFullScreen: false,
                   cc_lang_pref: 'en',
                   showClosedCaptions: false,
                   controls: true,
                   modestbranding: true,
+                  rel: 0, // Don't show related videos
                 }}
                 webViewStyle={{
-                  borderRadius: theme.borderRadius.medium,
+                  borderRadius: isFullscreen ? 0 : theme.borderRadius.medium,
                   opacity: 0.99, // Fix for WebView issues
                 }}
               />
             )}
-            <TouchableOpacity
-              style={styles.youtubeButton}
-              onPress={openInYouTube}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="logo-youtube" size={24} color="red" />
-              <Text style={styles.youtubeButtonText}>Open in YouTube</Text>
-            </TouchableOpacity>
+            {!isFullscreen && (
+              <TouchableOpacity
+                style={styles.youtubeButton}
+                onPress={openInYouTube}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="logo-youtube" size={24} color="red" />
+                <Text style={styles.youtubeButtonText}>Open in YouTube</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <View style={styles.albumArt}>
@@ -230,93 +263,98 @@ const PlayingScreen = () => {
         )}
       </View>
 
-      {/* Song Info */}
-      <View style={styles.songInfoContainer}>
-        {currentVideo ? (
-          <>
-            <Text style={styles.songTitle}>{currentVideo.title}</Text>
-            <Text style={styles.artistName}>{currentVideo.channelTitle}</Text>
-            <Text style={styles.viewCount}>{formatViewCount(currentVideo.viewCount)}</Text>
-          </>
-        ) : (
-          <Text style={styles.loadingText}>Loading video information...</Text>
-        )}
-      </View>
+      {/* Hide UI elements when in fullscreen mode */}
+      {!isFullscreen && (
+        <>
+          {/* Song Info */}
+          <View style={styles.songInfoContainer}>
+            {currentVideo ? (
+              <>
+                <Text style={styles.songTitle}>{currentVideo.title}</Text>
+                <Text style={styles.artistName}>{currentVideo.channelTitle}</Text>
+                <Text style={styles.viewCount}>{formatViewCount(currentVideo.viewCount)}</Text>
+              </>
+            ) : (
+              <Text style={styles.loadingText}>Loading video information...</Text>
+            )}
+          </View>
 
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <Text style={styles.timeText}>0:00</Text>
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: '0%' }]} />
-        </View>
-        <Text style={styles.timeText}>
-          {currentVideo ? formatDuration(currentVideo.duration) : '0:00'}
-        </Text>
-      </View>
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <Text style={styles.timeText}>0:00</Text>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBar, { width: '0%' }]} />
+            </View>
+            <Text style={styles.timeText}>
+              {currentVideo ? formatDuration(currentVideo.duration) : '0:00'}
+            </Text>
+          </View>
 
-      {/* Playback Controls */}
-      <View style={styles.controlsContainer}>
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => {
-            // Toggle shuffle mode
-            Alert.alert('Shuffle', 'Shuffle mode toggled');
-          }}
-        >
-          <Ionicons name="shuffle" size={24} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => {
-            // Play previous video
-            Alert.alert('Previous', 'Previous video');
-          }}
-        >
-          <Ionicons name="play-skip-back" size={28} color={theme.colors.text} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.playPauseButton}
-          onPress={togglePlayPause}
-        >
-          <Ionicons
-            name={isPlaying ? "pause" : "play"}
-            size={32}
-            color="#fff"
-            style={isPlaying ? null : styles.playPauseIcon}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => {
-            // Play next video
-            Alert.alert('Next', 'Next video');
-          }}
-        >
-          <Ionicons name="play-skip-forward" size={28} color={theme.colors.text} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => {
-            // Toggle repeat mode
-            Alert.alert('Repeat', 'Repeat mode toggled');
-          }}
-        >
-          <Ionicons name="repeat" size={24} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
+          {/* Playback Controls */}
+          <View style={styles.controlsContainer}>
+            <TouchableOpacity
+              style={styles.controlButton}
+              onPress={() => {
+                // Toggle shuffle mode
+                Alert.alert('Shuffle', 'Shuffle mode toggled');
+              }}
+            >
+              <Ionicons name="shuffle" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.controlButton}
+              onPress={() => {
+                // Play previous video
+                Alert.alert('Previous', 'Previous video');
+              }}
+            >
+              <Ionicons name="play-skip-back" size={28} color={theme.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.playPauseButton}
+              onPress={togglePlayPause}
+            >
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={32}
+                color="#fff"
+                style={isPlaying ? null : styles.playPauseIcon}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.controlButton}
+              onPress={() => {
+                // Play next video
+                Alert.alert('Next', 'Next video');
+              }}
+            >
+              <Ionicons name="play-skip-forward" size={28} color={theme.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.controlButton}
+              onPress={() => {
+                // Toggle repeat mode
+                Alert.alert('Repeat', 'Repeat mode toggled');
+              }}
+            >
+              <Ionicons name="repeat" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
-      {/* Additional Controls */}
-      <View style={styles.additionalControlsContainer}>
-        <TouchableOpacity style={styles.additionalButton}>
-          <Ionicons name="heart-outline" size={24} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.additionalButton}>
-          <MaterialIcons name="playlist-play" size={28} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.additionalButton}>
-          <Ionicons name="ellipsis-vertical" size={24} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
+          {/* Additional Controls */}
+          <View style={styles.additionalControlsContainer}>
+            <TouchableOpacity style={styles.additionalButton}>
+              <Ionicons name="heart-outline" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.additionalButton}>
+              <MaterialIcons name="playlist-play" size={28} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.additionalButton}>
+              <Ionicons name="ellipsis-vertical" size={24} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </View>
   );
 };
@@ -477,6 +515,22 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.xs,
     fontWeight: '600',
     color: '#333',
+  },
+  fullscreenContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+    backgroundColor: 'black',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenVideoContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
   },
   songInfoContainer: {
     alignItems: 'center',
