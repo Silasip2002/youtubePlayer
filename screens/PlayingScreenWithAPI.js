@@ -4,7 +4,12 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import theme from '../theme';
 import { useYouTube } from '../context/YouTubeContext';
 import YoutubePlayer from 'react-native-youtube-iframe';
-import * as ScreenOrientation from 'expo-screen-orientation';
+
+// Import ScreenOrientation only on native platforms
+let ScreenOrientation;
+if (Platform.OS !== 'web') {
+  ScreenOrientation = require('expo-screen-orientation');
+}
 
 const PlayingScreen = () => {
   // State for tracking if the song is playing
@@ -36,11 +41,11 @@ const PlayingScreen = () => {
 
     // Reset screen orientation when component unmounts
     return async () => {
-      if (Platform.OS !== 'web') {
+      if (Platform.OS !== 'web' && ScreenOrientation) {
         try {
           await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
         } catch (error) {
-          console.error('Error resetting screen orientation:', error);
+          console.warn('Error resetting screen orientation:', error);
         }
       }
     };
@@ -52,11 +57,15 @@ const PlayingScreen = () => {
   // Handle entering fullscreen mode
   const handleFullscreenChange = useCallback(async (isFullscreen) => {
     setIsFullscreen(isFullscreen);
-    if (Platform.OS !== 'web') {
-      if (isFullscreen) {
-        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-      } else {
-        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    if (Platform.OS !== 'web' && ScreenOrientation) {
+      try {
+        if (isFullscreen) {
+          await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+        } else {
+          await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        }
+      } catch (error) {
+        console.warn('Failed to change screen orientation:', error);
       }
     }
   }, []);
