@@ -7,13 +7,14 @@ import TrendingNow from './TrendingNow';
 import theme from '../theme';
 
 const HomeContent = () => {
-  const { 
-    trendingVideos, 
-    popularMusicVideos, 
-    isLoading, 
-    error, 
-    fetchTrendingVideos, 
-    fetchPopularMusicVideos 
+  const {
+    trendingVideos,
+    popularMusicVideos,
+    isLoading,
+    error,
+    fetchTrendingVideos,
+    fetchPopularMusicVideos,
+    getVideoDetails
   } = useYouTube();
 
   useEffect(() => {
@@ -79,11 +80,28 @@ const HomeContent = () => {
     );
   }
 
+  // Handle item press to play video
+  const handleItemPress = (item) => {
+    if (item && item.id) {
+      console.log('Playing item from HomeContent:', item.title);
+      getVideoDetails(item.id);
+    }
+  };
+
   return (
     <View>
-      <RecentlyPlayed albums={formattedPopularMusicVideos} />
-      <MadeForYou playlists={madeForYouPlaylists} />
-      <TrendingNow albums={formattedTrendingVideos} />
+      <RecentlyPlayed
+        albums={formattedPopularMusicVideos}
+        onAlbumPress={handleItemPress}
+      />
+      <MadeForYou
+        playlists={madeForYouPlaylists}
+        onPlaylistPress={handleItemPress}
+      />
+      <TrendingNow
+        albums={formattedTrendingVideos}
+        onAlbumPress={handleItemPress}
+      />
     </View>
   );
 };

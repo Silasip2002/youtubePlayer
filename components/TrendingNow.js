@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
 import theme from '../theme';
+import { useYouTube } from '../context/YouTubeContext';
 
-const TrendingNow = ({ albums }) => {
+const TrendingNow = ({ albums, onAlbumPress }) => {
+  const { getVideoDetails } = useYouTube();
+
   // Default albums if none provided
   const defaultAlbums = [
     {
@@ -21,6 +24,16 @@ const TrendingNow = ({ albums }) => {
 
   const albumsToRender = albums || defaultAlbums;
 
+  // Handle album press
+  const handleAlbumPress = (album) => {
+    if (onAlbumPress) {
+      onAlbumPress(album);
+    } else if (album.id) {
+      console.log('Playing trending album:', album.title);
+      getVideoDetails(album.id);
+    }
+  };
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -28,7 +41,11 @@ const TrendingNow = ({ albums }) => {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
         {albumsToRender.map((album) => (
-          <TouchableOpacity key={album.id} style={styles.trendingContainer}>
+          <TouchableOpacity
+            key={album.id}
+            style={styles.trendingContainer}
+            onPress={() => handleAlbumPress(album)}
+          >
             <Image source={{ uri: album.cover }} style={styles.trendingAlbum} />
             <Text style={styles.albumTitle}>{album.title}</Text>
             <Text style={styles.albumArtist}>{album.artist}</Text>

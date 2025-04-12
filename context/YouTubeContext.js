@@ -74,22 +74,32 @@ export const YouTubeProvider = ({ children }) => {
   // Get video details and related videos
   const getVideoDetails = async (videoId) => {
     try {
+      if (!videoId) {
+        console.error('No video ID provided to getVideoDetails');
+        setError('No video ID provided');
+        return { details: null, related: [] };
+      }
+
       setIsLoading(true);
       setError(null);
-      
+
+      console.log('Fetching details for video ID:', videoId);
+
       // Fetch video details and related videos in parallel
       const [details, related] = await Promise.all([
         YouTubeAPI.getVideoDetails(videoId),
         YouTubeAPI.getRelatedVideos(videoId)
       ]);
-      
+
+      console.log('Video details fetched successfully:', details.title);
+
       setCurrentVideo(details);
       setRelatedVideos(related);
-      
+
       return { details, related };
     } catch (err) {
-      setError(err.message);
       console.error('Error fetching video details:', err);
+      setError(err.message || 'Error loading video');
       return { details: null, related: [] };
     } finally {
       setIsLoading(false);

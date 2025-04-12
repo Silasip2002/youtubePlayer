@@ -81,9 +81,21 @@ const ExploreScreen = () => {
     </TouchableOpacity>
   );
 
+  // Handle playlist item press - play the video
+  const handlePlaylistItemPress = (item) => {
+    if (item && item.id) {
+      console.log('Playing video:', item.id);
+      getVideoDetails(item.id);
+    }
+  };
+
   // Render playlist item
   const renderPlaylistItem = (item) => (
-    <TouchableOpacity key={item.id} style={styles.playlistItem}>
+    <TouchableOpacity
+      key={item.id}
+      style={styles.playlistItem}
+      onPress={() => handlePlaylistItemPress(item)}
+    >
       <View style={styles.playlistImageContainer}>
         {item.thumbnail ? (
           <Image source={{ uri: item.thumbnail }} style={styles.playlistImage} />
@@ -92,6 +104,9 @@ const ExploreScreen = () => {
             <Text style={styles.imageText}>Image</Text>
           </View>
         )}
+        <View style={styles.playIcon}>
+          <Ionicons name="play-circle" size={24} color="white" />
+        </View>
       </View>
       <View style={styles.playlistInfo}>
         <Text style={styles.playlistTitle} numberOfLines={1}>{item.title}</Text>
@@ -278,6 +293,15 @@ const styles = StyleSheet.create({
   },
   playlistImageContainer: {
     marginRight: theme.spacing.md,
+    position: 'relative',
+  },
+  playIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
+    padding: 2,
   },
   playlistImage: {
     width: 60,

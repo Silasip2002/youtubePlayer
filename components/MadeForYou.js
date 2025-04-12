@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
 import theme from '../theme';
+import { useYouTube } from '../context/YouTubeContext';
 
-const MadeForYou = ({ playlists }) => {
+const MadeForYou = ({ playlists, onPlaylistPress }) => {
+  const { getVideoDetails, searchVideos } = useYouTube();
+
   // Default playlists if none provided
   const defaultPlaylists = [
     {
@@ -24,6 +27,30 @@ const MadeForYou = ({ playlists }) => {
 
   const playlistsToRender = playlists || defaultPlaylists;
 
+  // Handle playlist press
+  const handlePlaylistPress = async (playlist) => {
+    if (onPlaylistPress) {
+      onPlaylistPress(playlist);
+    } else {
+      try {
+        console.log('Playing playlist:', playlist.title);
+        // Search for videos related to the playlist title and description
+        const searchTerm = `${playlist.title} ${playlist.description || ''} music`;
+        const results = await searchVideos(searchTerm);
+
+        if (results && results.length > 0) {
+          // Play the first video from search results
+          getVideoDetails(results[0].id);
+        } else if (playlist.id) {
+          // Fallback to using the playlist ID if it's a valid video ID
+          getVideoDetails(playlist.id);
+        }
+      } catch (error) {
+        console.error('Error playing playlist:', error);
+      }
+    }
+  };
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -31,7 +58,11 @@ const MadeForYou = ({ playlists }) => {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
         {playlistsToRender.map((playlist) => (
-          <TouchableOpacity key={playlist.id} style={styles.playlistCard}>
+          <TouchableOpacity
+            key={playlist.id}
+            style={styles.playlistCard}
+            onPress={() => handlePlaylistPress(playlist)}
+          >
             <Image source={{ uri: playlist.cover }} style={styles.playlistImage} />
             <View style={styles.playlistOverlay}>
               <Text style={styles.playlistTitle}>{playlist.title}</Text>

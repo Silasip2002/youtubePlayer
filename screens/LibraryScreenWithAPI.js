@@ -8,13 +8,13 @@ const LibraryScreen = () => {
   // State for active tab
   const [activeTab, setActiveTab] = useState('playlists');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const { 
-    trendingVideos, 
-    popularMusicVideos, 
-    isLoading, 
-    error, 
-    getVideoDetails 
+
+  const {
+    trendingVideos,
+    popularMusicVideos,
+    isLoading,
+    error,
+    getVideoDetails
   } = useYouTube();
 
   // Create playlists from YouTube data
@@ -65,9 +65,22 @@ const LibraryScreen = () => {
 
   // Handle playlist item press
   const handlePlaylistPress = (playlist) => {
-    if (playlist.videos && playlist.videos.length > 0) {
-      // Play the first video in the playlist
-      getVideoDetails(playlist.videos[0].id);
+    try {
+      if (playlist.videos && playlist.videos.length > 0) {
+        // Play the first video in the playlist
+        console.log('Playing first video from playlist:', playlist.title);
+        console.log('Video ID:', playlist.videos[0].id);
+        getVideoDetails(playlist.videos[0].id);
+      } else if (playlist.id && playlist.id.startsWith('trending-')) {
+        // For trending playlists, we can extract the index and use it to get a video
+        const index = parseInt(playlist.id.split('-')[1], 10);
+        if (!isNaN(index) && index < trendingVideos.length) {
+          console.log('Playing trending video:', trendingVideos[index].title);
+          getVideoDetails(trendingVideos[index].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error playing playlist:', error);
     }
   };
 
@@ -172,8 +185,8 @@ const LibraryScreen = () => {
       {/* Playlist List */}
       {(!isLoading || trendingVideos.length > 0) && (
         <FlatList
-          data={getPlaylists().filter(playlist => 
-            searchQuery === '' || 
+          data={getPlaylists().filter(playlist =>
+            searchQuery === '' ||
             playlist.title.toLowerCase().includes(searchQuery.toLowerCase())
           )}
           renderItem={renderPlaylistItem}

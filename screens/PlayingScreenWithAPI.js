@@ -9,20 +9,29 @@ const PlayingScreen = () => {
   // State for tracking if the song is playing
   const [isPlaying, setIsPlaying] = useState(false);
   const [showPlayer, setShowPlayer] = useState(false);
-  
-  const { 
-    currentVideo, 
-    getVideoDetails, 
-    isLoading, 
-    error, 
-    popularMusicVideos 
+
+  const {
+    currentVideo,
+    getVideoDetails,
+    isLoading,
+    error,
+    popularMusicVideos
   } = useYouTube();
 
   // Use the first popular music video if no current video is selected
   useEffect(() => {
-    if (!currentVideo && popularMusicVideos.length > 0) {
-      getVideoDetails(popularMusicVideos[0].id);
-    }
+    const loadInitialVideo = async () => {
+      try {
+        if (!currentVideo && popularMusicVideos.length > 0) {
+          console.log('Loading initial video:', popularMusicVideos[0].id);
+          await getVideoDetails(popularMusicVideos[0].id);
+        }
+      } catch (err) {
+        console.error('Error loading initial video:', err);
+      }
+    };
+
+    loadInitialVideo();
   }, [currentVideo, popularMusicVideos]);
 
   // Toggle play/pause
@@ -34,34 +43,55 @@ const PlayingScreen = () => {
   // Format duration
   const formatDuration = (duration) => {
     if (!duration) return '0:00';
-    
-    // YouTube API returns duration in ISO 8601 format (e.g., PT4M13S)
-    const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
-    
-    const hours = (match[1] && match[1].replace('H', '')) || 0;
-    const minutes = (match[2] && match[2].replace('M', '')) || 0;
-    const seconds = (match[3] && match[3].replace('S', '')) || 0;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.padStart(2, '0')}:${seconds.padStart(2, '0')}`;
+
+    try {
+      // YouTube API returns duration in ISO 8601 format (e.g., PT4M13S)
+      const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+
+      if (!match) return '0:00';
+
+      const hours = (match[1] && match[1].replace('H', '')) || 0;
+      const minutes = (match[2] && match[2].replace('M', '')) || 0;
+      const seconds = (match[3] && match[3].replace('S', '')) || 0;
+
+      // Convert to strings and pad with zeros
+      const paddedSeconds = String(seconds).padStart(2, '0');
+      const paddedMinutes = String(minutes).padStart(2, '0');
+
+      if (hours > 0) {
+        return `${hours}:${paddedMinutes}:${paddedSeconds}`;
+      }
+
+      return `${minutes}:${paddedSeconds}`;
+    } catch (error) {
+      console.error('Error formatting duration:', error);
+      return '0:00';
     }
-    
-    return `${minutes}:${seconds.padStart(2, '0')}`;
   };
 
   // Format view count
   const formatViewCount = (count) => {
-    if (!count) return '0 views';
-    
-    if (count >= 1000000) {
-      return `${(count / 1000000).toFixed(1)}M views`;
+    try {
+      if (!count) return '0 views';
+
+      // Convert to number if it's a string
+      const numCount = typeof count === 'string' ? parseInt(count, 10) : count;
+
+      if (isNaN(numCount)) return '0 views';
+
+      if (numCount >= 1000000) {
+        return `${(numCount / 1000000).toFixed(1)}M views`;
+      }
+
+      if (numCount >= 1000) {
+        return `${(numCount / 1000).toFixed(1)}K views`;
+      }
+
+      return `${numCount} views`;
+    } catch (error) {
+      console.error('Error formatting view count:', error);
+      return '0 views';
     }
-    
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K views`;
-    }
-    
-    return `${count} views`;
   };
 
   if (isLoading && !currentVideo) {
@@ -103,7 +133,7 @@ const PlayingScreen = () => {
 
       {/* Album Art / Video Player */}
       <View style={styles.albumContainer}>
-        {showPlayer ? (
+        {showPlayer && currentVideo ? (
           <View style={styles.videoContainer}>
             <WebView
               source={{ uri: `https://www.youtube.com/embed/${currentVideo.id}?autoplay=1` }}
@@ -111,12 +141,13 @@ const PlayingScreen = () => {
               allowsFullscreenVideo
               javaScriptEnabled
               domStorageEnabled
+              onError={(e) => console.error('WebView error:', e.nativeEvent)}
             />
           </View>
-        ) : (
+        ) : currentVideo ? (
           <TouchableOpacity style={styles.albumArt} onPress={() => setShowPlayer(true)}>
-            <Image 
-              source={{ uri: currentVideo.thumbnail }} 
+            <Image
+              source={{ uri: currentVideo.thumbnail }}
               style={styles.albumImage}
               resizeMode="cover"
             />
@@ -124,14 +155,26 @@ const PlayingScreen = () => {
               <Ionicons name="play-circle" size={60} color="white" />
             </View>
           </TouchableOpacity>
+        ) : (
+          <View style={styles.albumArt}>
+            <View style={styles.playOverlay}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+          </View>
         )}
       </View>
 
       {/* Song Info */}
       <View style={styles.songInfoContainer}>
-        <Text style={styles.songTitle}>{currentVideo.title}</Text>
-        <Text style={styles.artistName}>{currentVideo.channelTitle}</Text>
-        <Text style={styles.viewCount}>{formatViewCount(currentVideo.viewCount)}</Text>
+        {currentVideo ? (
+          <>
+            <Text style={styles.songTitle}>{currentVideo.title}</Text>
+            <Text style={styles.artistName}>{currentVideo.channelTitle}</Text>
+            <Text style={styles.viewCount}>{formatViewCount(currentVideo.viewCount)}</Text>
+          </>
+        ) : (
+          <Text style={styles.loadingText}>Loading video information...</Text>
+        )}
       </View>
 
       {/* Progress Bar */}
@@ -140,7 +183,9 @@ const PlayingScreen = () => {
         <View style={styles.progressBarContainer}>
           <View style={[styles.progressBar, { width: '0%' }]} />
         </View>
-        <Text style={styles.timeText}>{formatDuration(currentVideo.duration)}</Text>
+        <Text style={styles.timeText}>
+          {currentVideo ? formatDuration(currentVideo.duration) : '0:00'}
+        </Text>
       </View>
 
       {/* Playback Controls */}
@@ -152,10 +197,10 @@ const PlayingScreen = () => {
           <Ionicons name="play-skip-back" size={28} color={theme.colors.text} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.playPauseButton} onPress={togglePlayPause}>
-          <Ionicons 
-            name={isPlaying ? "pause" : "play"} 
-            size={32} 
-            color="#fff" 
+          <Ionicons
+            name={isPlaying ? "pause" : "play"}
+            size={32}
+            color="#fff"
             style={isPlaying ? null : styles.playPauseIcon}
           />
         </TouchableOpacity>
