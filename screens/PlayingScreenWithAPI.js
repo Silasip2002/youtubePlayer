@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, ActivityIndicator, Platform, Linking } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import theme from '../theme';
 import { useYouTube } from '../context/YouTubeContext';
-import WebView from 'react-native-webview';
+import { WebView } from 'react-native-webview';
 
 const PlayingScreen = () => {
   // State for tracking if the song is playing
@@ -37,7 +37,27 @@ const PlayingScreen = () => {
   // Toggle play/pause
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
-    setShowPlayer(true);
+
+    // If on web platform, open YouTube directly
+    if (Platform.OS === 'web' && currentVideo) {
+      window.open(`https://www.youtube.com/watch?v=${currentVideo.id}`, '_blank');
+    } else {
+      setShowPlayer(true);
+    }
+  };
+
+  // Open video in YouTube app or browser
+  const openInYouTube = () => {
+    if (currentVideo) {
+      const youtubeUrl = `https://www.youtube.com/watch?v=${currentVideo.id}`;
+      Linking.canOpenURL(youtubeUrl).then(supported => {
+        if (supported) {
+          Linking.openURL(youtubeUrl);
+        } else {
+          console.error("Don't know how to open URI: " + youtubeUrl);
+        }
+      });
+    }
   };
 
   // Format duration
@@ -134,16 +154,38 @@ const PlayingScreen = () => {
       {/* Album Art / Video Player */}
       <View style={styles.albumContainer}>
         {showPlayer && currentVideo ? (
-          <View style={styles.videoContainer}>
-            <WebView
-              source={{ uri: `https://www.youtube.com/embed/${currentVideo.id}?autoplay=1` }}
-              style={styles.webView}
-              allowsFullscreenVideo
-              javaScriptEnabled
-              domStorageEnabled
-              onError={(e) => console.error('WebView error:', e.nativeEvent)}
-            />
-          </View>
+          Platform.OS === 'web' ? (
+            // For web platform, show a clickable thumbnail that opens YouTube
+            <View style={styles.videoContainer}>
+              <TouchableOpacity style={styles.webFallback} onPress={() => window.open(`https://www.youtube.com/watch?v=${currentVideo.id}`, '_blank')}>
+                <Image
+                  source={{ uri: currentVideo.thumbnail }}
+                  style={styles.fallbackImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.fallbackOverlay}>
+                  <Text style={styles.fallbackText}>Click to watch on YouTube</Text>
+                  <Ionicons name="logo-youtube" size={48} color="red" style={styles.youtubeIcon} />
+                </View>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // For native platforms, use WebView
+            <View style={styles.videoContainer}>
+              <WebView
+                source={{ uri: `https://www.youtube.com/embed/${currentVideo.id}?autoplay=1` }}
+                style={styles.webView}
+                allowsFullscreenVideo
+                javaScriptEnabled
+                domStorageEnabled
+                onError={(e) => {
+                  console.error('WebView error:', e.nativeEvent);
+                  // If WebView fails, provide a fallback
+                  openInYouTube();
+                }}
+              />
+            </View>
+          )
         ) : currentVideo ? (
           <TouchableOpacity style={styles.albumArt} onPress={() => setShowPlayer(true)}>
             <Image
@@ -154,6 +196,14 @@ const PlayingScreen = () => {
             <View style={styles.playOverlay}>
               <Ionicons name="play-circle" size={60} color="white" />
             </View>
+            <TouchableOpacity
+              style={styles.youtubeButton}
+              onPress={openInYouTube}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-youtube" size={24} color="red" />
+              <Text style={styles.youtubeButtonText}>Open in YouTube</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         ) : (
           <View style={styles.albumArt}>
@@ -311,6 +361,63 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
+  },
+  webFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: theme.borderRadius.medium,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  fallbackImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: theme.borderRadius.medium,
+  },
+  fallbackOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+  },
+  fallbackText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  youtubeIcon: {
+    marginTop: theme.spacing.sm,
+  },
+  youtubeButton: {
+    position: 'absolute',
+    bottom: theme.spacing.md,
+    left: '50%',
+    transform: [{ translateX: -80 }],
+    backgroundColor: 'white',
+    borderRadius: 20,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 160,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  youtubeButtonText: {
+    marginLeft: theme.spacing.xs,
+    fontWeight: '600',
+    color: '#333',
   },
   songInfoContainer: {
     alignItems: 'center',
