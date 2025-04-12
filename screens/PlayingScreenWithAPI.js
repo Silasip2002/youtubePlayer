@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, ActivityIn
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import theme from '../theme';
 import { useYouTube } from '../context/YouTubeContext';
-import YoutubePlayer from 'react-native-youtube-iframe';
+import CustomYouTubePlayer from '../components/CustomYouTubePlayer';
 
 // Import ScreenOrientation only on native platforms
 let ScreenOrientation;
@@ -229,7 +229,7 @@ const PlayingScreen = () => {
               </TouchableOpacity>
             ) : (
               // YouTube iframe player for all platforms
-              <YoutubePlayer
+              <CustomYouTubePlayer
                 ref={playerRef}
                 height={isFullscreen ? Dimensions.get('window').width : albumSize}
                 width={isFullscreen ? Dimensions.get('window').height : albumSize}
@@ -239,7 +239,6 @@ const PlayingScreen = () => {
                 onError={onError}
                 onFullScreenChange={handleFullscreenChange}
                 initialPlayerParams={{
-                  preventFullScreen: false,
                   cc_lang_pref: 'en',
                   showClosedCaptions: false,
                   controls: true,
@@ -248,7 +247,6 @@ const PlayingScreen = () => {
                 }}
                 webViewStyle={{
                   borderRadius: isFullscreen ? 0 : theme.borderRadius.medium,
-                  opacity: 0.99, // Fix for WebView issues
                 }}
               />
             )}
